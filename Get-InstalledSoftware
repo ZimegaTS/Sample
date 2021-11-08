@@ -1,0 +1,152 @@
+Function Get-InstalledSoftware {
+    <#
+    .SYNOPSIS
+    Gets list of software installed on system
+    .EXAMPLE
+    Get-InstalledSoftware
+    .EXAMPLE
+    Get-InstalledSoftware -NonMicrosoft
+    .EXAMPLE
+    Get-InstalledSoftware -OnlyMicrosoft
+    .EXAMPLE
+    Get-InstalledSoftware -computername localhost
+    .EXAMPLE
+    Get-InstalledSoftware -computername Computer1, Computer2, Computer3, Computer4
+    .EXAMPLE
+    Get-InstalledSoftware -ComputerName (Get-Content servernames.txt)
+    .PARAMETER ComputerName
+    One or more computer names or IP addresses.
+    .PARAMETER ConnectAs
+    Use this switch if you would like to specify different credentials 
+    .PARAMETER Cred
+    All you to specify the credentials you would like to use to query system
+    .PARAMETER NonMicrosoft
+    Use this switch if you would like to see only Non-Microsoft software installed on system
+    .PARAMETER OnlyMicrosoft
+    Use this switch if you would like to see only Microsoft software installed on system
+    .DESCRIPTION
+    Script written by Frank Straughter Jr.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false, ValueFromPipeline = $True, ValueFromPipelineByPropertyName = $True)]
+        [string[]]$ComputerName = $env:COMPUTERNAME,
+        [Parameter(Mandatory = $false)]
+        $Cred = [System.Management.Automation.PSCredential]::Empty,
+        [Parameter(Mandatory = $false)]
+        [switch]$ConnectAs,
+        [Parameter(Mandatory = $false)]
+        [switch]$NonMicrosoft,
+        [Parameter(Mandatory = $false)]
+        [switch]$OnlyMicrosoft
+    )
+        foreach ($Computer in $ComputerName){
+            Try {
+                if ($ConnectAs) {
+                    Write-Verbose "Getting list of software......"
+                    $SoftwareList = Invoke-Command -ScriptBlock { Get-CimInstance Win32_Product } -Credential $Cred -ComputerName $Computer -ErrorAction Stop
+                    $Success = $True
+                    Write-Debug "(`$ConnectAs) Statement"
+                    Write-Debug "`$SoftwareList contains: $SoftwareList"
+                    Write-Debug "`$Success contains: $Success"
+
+                }
+                elseif ($ConnectAs -and $NonMicrosoft){
+                    Write-Verbose "Getting list of Non-Microsoft software........"
+                    $SoftwareList = Invoke-Command -ScriptBlock { Get-CimInstance Win32_Product | Where-Object { $_.Vendor -notmatch "Microsoft"} } -Credential $Cred -ComputerName $Computer -ErrorAction Stop
+                    $Success = $True
+                    Write-Debug "(`$ConnectAs -and `$NonMicrosoft) Statement"
+                    Write-Debug "`$SoftwareList contains: $SoftwareList"
+                    Write-Debug "`$Success contains: $Success"
+                }
+                elseif ($ConnectAs -and $OnlyMicrosoft){
+                    Write-Verbose "Getting list of Microsoft software........"
+                    $SoftwareList = Invoke-Command -ScriptBlock { Get-CimInstance Win32_Product | Where-Object { $_.Vendor -match "Microsoft"} } -Credential $Cred -ComputerName $Computer -ErrorAction Stop
+                    $Success = $True
+                    Write-Debug "(`$ConnectAs -and `$OnlyMicrosoft) Statement"
+                    Write-Debug "`$SoftwareList contains: $SoftwareList"
+                    Write-Debug "`$Success contains: $Success"
+                }
+                elseif (!($ConnectAs) -and $Computer -ne $env:COMPUTERNAME){
+                    Write-Verbose "Getting list of software......"
+                    $SoftwareList = Invoke-Command -ScriptBlock { Get-CimInstance Win32_Product } -ComputerName $Computer -ErrorAction Stop
+                    $Success = $True
+                    Write-Debug "(!(`$ConnectAs) -and `$Computer -ne `$env:COMPUTERNAME) Statement"
+                    Write-Debug "`$SoftwareList contains: $SoftwareList"
+                    Write-Debug "`$Success contains: $Success"
+                }
+                elseif (!($ConnectAs) -and $Computer -ne $env:COMPUTERNAME -and $NonMicrosoft){
+                    Write-Verbose "Getting list of Non-Microsoft software........"
+                    $SoftwareList = Invoke-Command -ScriptBlock { Get-CimInstance Win32_Product | Where-Object { $_.Vendor -notmatch "Microsoft"} } -ComputerName $Computer -ErrorAction Stop
+                    $Success = $True
+                    Write-Debug "(!(`$ConnectAs) -and `$Computer -ne `$env:COMPUTERNAME -and `$NonMicrosoft) Statement"
+                    Write-Debug "`$SoftwareList contains: $SoftwareList"
+                    Write-Debug "`$Success contains: $Success"
+                }
+                elseif (!($ConnectAs) -and $Computer -ne $env:COMPUTERNAME -and $OnlyMicrosoft){
+                    Write-Verbose "Getting list of Microsoft software........"
+                    $SoftwareList = Invoke-Command -ScriptBlock { Get-CimInstance Win32_Product | Where-Object { $_.Vendor -match "Microsoft"} } -ComputerName $Computer -ErrorAction Stop
+                    $Success = $True
+                    Write-Debug "(!(`$ConnectAs) -and `$Computer -ne `$env:COMPUTERNAME -and `$OnlyMicrosoft) Statement"
+                    Write-Debug "`$SoftwareList contains: $SoftwareList"
+                    Write-Debug "`$Success contains: $Success"
+                }
+                elseif ($NonMicrosoft){
+                    Write-Verbose "Getting list of Non-Microsoft software........"
+                    $SoftwareList = Get-CimInstance Win32_Product -ErrorAction Stop | Where-Object { $_.Vendor -notmatch "Microsoft"}
+                    $Success = $True
+                    Write-Debug "(`$NonMicrosoft) Statement"
+                    Write-Debug "`$SoftwareList contains: $SoftwareList"
+                    Write-Debug "`$Success contains: $Success"
+                }
+                elseif ($OnlyMicrosoft){
+                    Write-Verbose "Getting list of Microsoft software........"
+                    $SoftwareList = Get-CimInstance Win32_Product -ErrorAction Stop | Where-Object { $_.Vendor -match "Microsoft"}
+                    $Success = $True
+                    Write-Debug "(`$OnlyMicrosoft) Statement"
+                    Write-Debug "`$SoftwareList contains: $SoftwareList"
+                    Write-Debug "`$Success contains: $Success"
+                }
+                else {
+                    Write-Verbose "Getting list of software......"
+                    $SoftwareList = Get-CimInstance Win32_Product -ErrorAction Stop
+                    $Success = $True
+                    Write-Debug "Else Statement"
+                    Write-Debug "`$SoftwareList contains: $SoftwareList"
+                    Write-Debug "`$Success contains: $Success"
+                }
+            }
+            Catch {
+                Write-Warning $_
+            }
+    
+            if ($Success) {
+                Try {
+                    
+                    if ($SoftwareList) {
+    
+                        foreach ($Program in $SoftwareList){
+                            $Date = $Program.InstallDate
+                            $Date = "{0}{1}{2}{3}-{4}{5}-{6}{7}" -f $Date[0], $Date[1], $Date[2], $Date[3], $Date[4], $Date[5], $Date[6], $Date[7]
+                            $props = [ordered] @{
+                                "Name"            = $Program.Name;
+                                "Version"         = $Program.Version;
+                                "Description"     = $Program.Description;
+                                "Vendor"          = $Program.Vendor;
+                                "InstallDate"     = $Date
+                            }
+                            $Object = New-Object -TypeName PSObject -Property $props
+                            $Object.PSObject.TypeNames.Insert(0, 'AdminSuperTool.InstalledSoftware')
+                            Write-Output $Object
+                        }
+                    }
+                    Else {
+                        Write-Output "No Software Found"
+                    }
+                }
+                Catch {
+                    Write-Warning $_
+                }
+            }
+        }
+    }
